@@ -36,11 +36,18 @@ headers = {
 }
 file_name = '/bilibili_ranking.txt'
 
-def get_ranking_video():
+def get_content():
 	r = requests.get('https://www.bilibili.com/ranking', headers=headers, proxies=proxies)
 	html = etree.HTML(r.text)
+	return html
+
+def get_ranking_video(html):
 	ranking_video = html.cssselect('.rank-list div.content div.info > a')
-	return list(i.text for i in ranking_video)
+	rdict = {}
+	update_dic = lambda a: {a.text: a.get('href')}
+	for a in ranking_video:
+		rdict.update(update_dic(a))
+	return rdict
 
 def input_file(ranking_video):
 	with open(file_path + file_name, 'w+') as f:
@@ -49,14 +56,11 @@ def input_file(ranking_video):
 			f.write('\n')
 
 def is_new_video_up(ranking_video):
-	new_video = []
 	with open (file_path + file_name, 'r') as f:
 		read_file = f.readlines()
 		old_video = list(map(lambda x : x.rstrip('\n'), read_file))
-	for i in ranking_video:
-		if i not in old_video:
-			new_video.append(i)
-	if new_video == []:
+	new_video = {k: v for k, v in ranking_video.items() if k not in old_video}
+	if new_video == {}:
 		return False
 	else:
 		input_file(ranking_video)
@@ -70,12 +74,13 @@ if file_path == '':
 		file = open(file_path + file_name, 'w')
 		file.close()
 
-ranking_video = get_ranking_video()
+html = get_content()
+ranking_video = get_ranking_video(html)
 new_video = is_new_video_up(ranking_video)
 if not new_video:
 	print('还没新视频上榜')
 else:
 	print('\n有这些新视频上榜【'+ str(len(new_video)) +'】：')
-	print('\n=====================================\n')
-	for i in new_video:
-		print(i)
+	print('\n=====================================')
+	for k, v in new_video.items():
+		print('\n' + k + '\n' + v)
