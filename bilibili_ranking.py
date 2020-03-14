@@ -1,86 +1,104 @@
-#!/usr/bin/python3
-#coding:utf-8 #
-
 import requests
 from lxml import etree
 import cssselect
+import os
+import re
+import time
+import utils
 
-'''
-说明：
-此脚本为爬取bilibili排行榜的新视频，旧的排行榜内容为上一次运行此脚本时生成
 
-运行环境：
-请使用python3.6及以上
-  请输入以下命令安装依赖包：
-    pip3 install -r requirements.txt
-  若丢失requirements.txt文件或想单独安装：
-    pip3 install requests
-	pip3 install lxml
-	pip3 install cssselect
-    【注意】如果有使用sock5的需求请讲第一条命令改为：
-      pip3 install requests[socks]
+class BilibiliRanking():
+	def __init__(self):
+		super().__init__()
+		running_path = os.getcwd()
+		self.cache_file_path = running_path + '/out/cache/bilibili_ranking.txt'
+		self.csv_path = running_path + '/out/'
+		self.proxies = {
+			'http:': '',
+			'https:': ''
+		}
+		self.headers = {
+			'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.106 Safari/537.36'
+		}
+		self.re_c_cache_common_config = re.compile(r'^__\w*__$')
+		self.timestamp = float()
+		self.__out_file_prefix = 'bilibili_ranking'
 
-运行之前：
-  请填写下面变量：
-    file_path 此变量为脚本生成文件保存路径 【默认】：脚本运行目录
-	proxies 代理地址，如果过于频繁使用此脚本被b站封ip，请使用代理  【默认】：空
-'''
 
-file_path = ''
-proxies = {
-	'http:': '',
-	'https:': ''
-}
-headers = {
-	'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.106 Safari/537.36'
-}
-file_name = '/bilibili_ranking.txt'
+	def __get_content(self):
+		r = requests.get('https://www.bilibili.com/ranking', headers=self.headers, proxies=self.proxies)
+		html = etree.HTML(r.text)
+		return html
 
-def get_content():
-	r = requests.get('https://www.bilibili.com/ranking', headers=headers, proxies=proxies)
-	html = etree.HTML(r.text)
-	return html
+	def __get_ranking_video(self, html):
+		ranking_video_info = html.cssselect('.rank-list div.content div.info')
+		self.timestamp = time.time()
+		rdict = {
+			'__timestamp__': str(self.timestamp)
+		}
+		av_num_re_compile = re.compile(r'/av\d*')
+		for index, each_video_info in enumerate(ranking_video_info):
+			title = each_video_info.cssselect('a.title')[0].text
+			link = each_video_info.cssselect('a.title')[0].get('href')
+			av_num = av_num_re_compile.search(link).group().lstrip('/') # av号作为id
+			play_count, comment_count = each_video_info.xpath('./div[@class="detail"]/span/text()') #我没有办法用cssselector提取”<span><i></i>string</span>“中的文字
+			author = each_video_info.xpath('./div[@class="detail"]/a/span/text()')[0]
+			author_space = each_video_info.cssselect('div.detail a')[0].get('href')
+			pts = each_video_info.cssselect('div.pts > div')[0].text
+			video_info = {
+				av_num: {
+					'rank': str(index + 1),
+					'title': title,
+					'link': link,
+					'play_count': play_count,
+					'author': author,
+					'author_space': author_space,
+					'pts': pts
+				}
+			}
+			rdict.update(video_info)
+		return rdict
 
-def get_ranking_video(html):
-	ranking_video = html.cssselect('.rank-list div.content div.info > a')
-	rdict = {}
-	update_dic = lambda a: {a.text: a.get('href')}
-	for a in ranking_video:
-		rdict.update(update_dic(a))
-	return rdict
+	def __input_cache_file(self, ranking_video):
+		with open(self.cache_file_path, 'w+') as f:
+			for i in ranking_video:
+				if not self.re_c_cache_common_config.match(i):
+					f.writelines(i)
+					f.write('\n')
 
-def input_file(ranking_video):
-	with open(file_path + file_name, 'w+') as f:
-		for i in ranking_video:
-			f.writelines(i)
-			f.write('\n')
+	def __is_new_video_up(self, ranking_video):
+		with open (self.cache_file_path, 'r') as f:
+			read_file = f.readlines()
+			old_video = list(map(lambda x : x.rstrip('\n'), read_file))
+		new_video = {k: v for k, v in ranking_video.items() if k not in old_video and not self.re_c_cache_common_config.match(k)}
+		if not new_video:
+			return None
+		else:
+			self.__input_cache_file(ranking_video)
+			return new_video
 
-def is_new_video_up(ranking_video):
-	with open (file_path + file_name, 'r') as f:
-		read_file = f.readlines()
-		old_video = list(map(lambda x : x.rstrip('\n'), read_file))
-	new_video = {k: v for k, v in ranking_video.items() if k not in old_video}
-	if new_video == {}:
-		return False
-	else:
-		input_file(ranking_video)
-		return new_video
+	# 很多表达式写得太复杂了，需要用到这个方法取重构
+	def __get_no_common_conf_dict(self, dic:dict):
+		return {k: v for k, v in dic.items() if not self.re_c_cache_common_config.match(k)}
 
-if file_path == '':
-	print('【WARNNING】: 脚本生成文件位于执行目录下')
-	import os
-	file_path = os.getcwd()
-	if not os.path.exists(file_path + file_name):
-		file = open(file_path + file_name, 'w')
-		file.close()
+	def __input_csv(self, videos_info):
+		ts = self.timestamp
+		videos_info = self.__get_no_common_conf_dict(videos_info)
+		utils.write_csv(self.csv_path + self.__out_file_prefix + ts + '.csv', videos_info)
 
-html = get_content()
-ranking_video = get_ranking_video(html)
-new_video = is_new_video_up(ranking_video)
-if not new_video:
-	print('还没新视频上榜')
-else:
-	print('\n有这些新视频上榜【'+ str(len(new_video)) +'】：')
-	print('\n=====================================')
-	for k, v in new_video.items():
-		print('\n' + k + '\n' + v)
+	def bilibili_ranking(self):
+		if not os.path.exists(self.cache_file_path):
+			file = open(self.cache_file_path, 'w')
+			file.close()
+
+		html = self.__get_content()
+		ranking_video = self.__get_ranking_video(html)
+		new_video = self.__is_new_video_up(ranking_video)
+		if not new_video:
+			print('还没新视频上榜')
+		else:
+			print('\n有这些新视频上榜【'+ str(len(new_video)) +'】：')
+			print('\n=====================================')
+			for v in new_video.values():
+				print('\n' + v['title'] + '\n' + v['link'])
+			self.__input_csv(new_video)
