@@ -14,7 +14,7 @@ class Scheduler():
             raise Exception('Scheduler shutdown failed') from e
 
     def add_job(self, func):
-        self.sche.add_job(func, 'interval', minutes=30)
+        self.sche.add_job(func, 'interval', seconds=5)
 
     def start_jobs(self):
         self.sche.start()

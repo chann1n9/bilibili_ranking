@@ -1,10 +1,11 @@
 import requests
-from lxml import etree
 import cssselect
 import os
 import re
 import time
-import utils
+from utils import csv_handler
+from utils.logger import Logger
+from lxml import etree
 
 
 class BilibiliRanking():
@@ -14,8 +15,8 @@ class BilibiliRanking():
 		self.cache_file_path = running_path + '/out/cache/bilibili_ranking.txt'
 		self.csv_path = running_path + '/out/'
 		self.proxies = {
-			'http:': '',
-			'https:': ''
+			'http:': 'http://127.0.0.1:8118',
+			'https:': 'http://127.0.0.1:8118'
 		}
 		self.headers = {
 			'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.106 Safari/537.36'
@@ -23,20 +24,26 @@ class BilibiliRanking():
 		self.re_c_cache_common_config = re.compile(r'^__\w*__$')
 		self.timestamp = float()
 		self.__out_file_prefix = 'bilibili_ranking'
+		self.LOG = Logger(package_name='bililog')
+		self.logger = self.LOG.get_logger()
 
+		if not os.path.exists(self.cache_file_path):
+			file = open(self.cache_file_path, 'w')
+			file.close()
 
 	def __get_content(self):
 		r = requests.get('https://www.bilibili.com/ranking', headers=self.headers, proxies=self.proxies)
 		html = etree.HTML(r.text)
 		return html
 
-	def __get_ranking_video(self, html):
+	def get_ranking_video(self):
+		html = self.__get_content()
 		ranking_video_info = html.cssselect('.rank-list div.content div.info')
 		self.timestamp = time.time()
 		rdict = {
 			'__timestamp__': str(self.timestamp)
 		}
-		av_num_re_compile = re.compile(r'/av\d*')
+		av_num_re_compile = re.compile(r'/BV\S*')
 		for index, each_video_info in enumerate(ranking_video_info):
 			title = each_video_info.cssselect('a.title')[0].text
 			link = each_video_info.cssselect('a.title')[0].get('href')
@@ -66,7 +73,7 @@ class BilibiliRanking():
 					f.writelines(i)
 					f.write('\n')
 
-	def __is_new_video_up(self, ranking_video):
+	def is_new_video_up(self, ranking_video):
 		with open (self.cache_file_path, 'r') as f:
 			read_file = f.readlines()
 			old_video = list(map(lambda x : x.rstrip('\n'), read_file))
@@ -81,24 +88,23 @@ class BilibiliRanking():
 	def __get_no_common_conf_dict(self, dic:dict):
 		return {k: v for k, v in dic.items() if not self.re_c_cache_common_config.match(k)}
 
-	def __input_csv(self, videos_info):
-		ts = self.timestamp
-		videos_info = self.__get_no_common_conf_dict(videos_info)
-		utils.write_csv(self.csv_path + self.__out_file_prefix + ts + '.csv', videos_info)
+	def input_csv(self, videos_info):
+		vi = videos_info
+		if self.is_new_video_up(vi) is not None:
+			self.logger.info('not none')
+			ts = vi['__timestamp__']
+			vinfo = self.__get_no_common_conf_dict(vi)
+			csv_handler.write_csv(self.csv_path + self.__out_file_prefix + ts + '.csv', vinfo)
+			self.logger.info('input csv finished')
 
 	def bilibili_ranking(self):
-		if not os.path.exists(self.cache_file_path):
-			file = open(self.cache_file_path, 'w')
-			file.close()
-
-		html = self.__get_content()
-		ranking_video = self.__get_ranking_video(html)
-		new_video = self.__is_new_video_up(ranking_video)
+		ranking_video = self.get_ranking_video()
+		new_video = self.is_new_video_up(ranking_video)
 		if not new_video:
-			print('还没新视频上榜')
+			self.logger.info('还没新视频上榜')
 		else:
-			print('\n有这些新视频上榜【'+ str(len(new_video)) +'】：')
-			print('\n=====================================')
+			self.logger.info('\n有这些新视频上榜【'+ str(len(new_video)) +'】：')
+			self.logger.info('\n=====================================')
 			for v in new_video.values():
-				print('\n' + v['title'] + '\n' + v['link'])
-			self.__input_csv(new_video)
+				self.logger.info('\n' + v['title'] + '\n' + v['link'])
+		return new_video

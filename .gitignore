@@ -2,4 +2,4 @@ venv
 bilibili_ranking.txt
 .vscode
 __pycache__
-m.py
+/out
