@@ -77,3 +77,7 @@ debug file in vscode:
     ]
 }
 ```
+##### 开发新功能
+1. 将新功能代码开发在plugings目录下
+2. 新的apscheduler的job放在job_master.py的Jobs类里
+3. job_master.JobMaster.load_jobs中规定任务的时间参数
