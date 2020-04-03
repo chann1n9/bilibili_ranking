@@ -48,13 +48,21 @@ proxies 代理地址，如果过于频繁使用此脚本被b站封ip，请使用
 
 debug file in vscode:
 
-```
+```json
 {
     // Use IntelliSense to learn about possible attributes.
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        {
+            "name": "Python: brk.py run",
+            "type": "python",
+            "request": "launch",
+            "program": "brk.py",
+            "console": "integratedTerminal",
+            "args": ["run"]
+        },
         {
             "name": "Python: 当前文件",
             "type": "python",
@@ -66,7 +74,6 @@ debug file in vscode:
             "name": "Python: brk.py",
             "type": "python",
             "request": "launch",
-            // "program": "${file}",
             "program": "brk.py",
             "console": "integratedTerminal"
         }
