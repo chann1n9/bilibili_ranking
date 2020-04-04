@@ -7,7 +7,7 @@ from job_master import JobMaster
 from utils.logger import Logger
 
 
-LOG = Logger(package_name='brk')
+LOG = Logger(__name__)
 logger = LOG.get_logger()
 
 def init_dir():
@@ -22,8 +22,10 @@ def run():
     jobmaster = JobMaster()
     jobmaster.load_jobs()
     jobmaster.start_jobs()
+    logger.info('APScheduler is running')
 
     # Thread MainThread
+    logger.info('MainThred is running')
     try:
         TRYTIME = 0
         TIMEOUT = 10
@@ -39,7 +41,7 @@ def run():
     except TimeoutError:
         logger.error('TIMEOUT, Exit...')
     except KeyboardInterrupt:
-        logger.info('\nKeyboard Interrupt')
+        logger.info('Keyboard Interrupt')
     finally:
         logger.info('Clear the cache..')
         logger.info('Finished!')

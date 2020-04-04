@@ -3,11 +3,17 @@ import json
 import os
 import re
 from utils.conf_reader import ConfReader
+from requests.exceptions import ProxyError
+from utils.logger import Logger
 
+
+LOG = Logger(__name__)
+logger = LOG.get_logger()
 
 class Telegram():
     def __init__(self, chat_id, token):
         super().__init__()
+
         self.conf = ConfReader(os.getcwd() + '/config/telegram.json').get_conf_as_dict()
         proxies = self.conf['proxies']
         self.proxies = {
@@ -17,6 +23,10 @@ class Telegram():
         self.headers = {'content-type': 'application/json',
            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:22.0) Gecko/20100101 Firefox/22.0'}
         self.API_URL = "https://api.telegram.org/"
+        class TGMethod:
+            sendMessage = '/sendMessage'
+            getUpdates = '/getUpdates'
+        self.method = TGMethod()
         if chat_id and token:
             self.token = token
             self.chat_id = chat_id
@@ -42,9 +52,8 @@ class Telegram():
     pre-formatted fixed-width code block written in the Python programming language
     ```
     '''
-
     def sendmessage_as_markdown(self, text):
-        url = self.API_URL + self.token + '/sendMessage'
+        url = self.API_URL + self.token + self.method.sendMessage
         msg_form = {"chat_id": self.chat_id,
             "text": text,
             "parse_mode": "MarkdownV2"
@@ -52,7 +61,7 @@ class Telegram():
         requests.get(url, data=json.dumps(msg_form), proxies=self.proxies, headers=self.headers)
 
     def sendmessage_as_text(self, text):
-        url = self.API_URL + self.token + '/sendMessage'
+        url = self.API_URL + self.token + self.method.sendMessage
         msg_form = {"chat_id": self.chat_id,
             "text": text,
             }
@@ -72,12 +81,21 @@ class Telegram():
     <pre>pre-formatted fixed-width code block</pre>
     <pre><code class="language-python">pre-formatted fixed-width code block written in the Python programming language</code></pre>
     '''
-
     def sendmessage_as_html(self, text):
-        url = self.API_URL + self.token + '/sendMessage'
+        url = self.API_URL + self.token + self.method.sendMessage
         msg_form = {"chat_id": self.chat_id,
             "text": text,
             "parse_mode": "HTML"
             }
         requests.get(url, data=json.dumps(msg_form), proxies=self.proxies, headers=self.headers)
+
+    def get_updates(self):
+        url = self.API_URL + self.token + self.method.getUpdates
+        try:
+            r = requests.get(url, proxies=self.proxies, headers=self.headers)
+        except ProxyError as e:
+            logger.warning('telegram代理设置错误 Proxy is {}'.format(self.proxies))
+            return e
+        return r
+
         
