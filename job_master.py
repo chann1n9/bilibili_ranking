@@ -4,6 +4,7 @@ from plugins.bilibili_ranking import BilibiliRanking
 from plugins.telegram import Telegram
 from plugins.weather import Weather
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.executors.pool import ThreadPoolExecutor
 from utils import formater
 
 
@@ -45,13 +46,19 @@ class Jobs:
 class JobMaster(Jobs):
     def __init__(self):
         time_zone = pytz.timezone('Asia/Shanghai')
-        self.sche = BackgroundScheduler(timezone=time_zone)
+        executors = {
+            'default': ThreadPoolExecutor(20)
+        }
+        self.sche = BackgroundScheduler(timezone=time_zone, executors=executors)
 
     def start_jobs(self):
         self.sche.start()
 
     def shut_down(self):
         self.sche.shutdown()
+
+    def is_jobs_exist(self):
+        return self.sche.get_jobs() != []
 
     def load_jobs(self):
         self.sche.add_job(self.job_weather, 'cron', hour='9')
