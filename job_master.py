@@ -4,24 +4,17 @@ from plugins.bilibili_ranking import BilibiliRanking
 from plugins.telegram import Telegram
 from plugins.weather import Weather
 from apscheduler.schedulers.background import BackgroundScheduler
+from utils import formater
 
 
 class Jobs:
     
     def bilibiliranking(self):
-        timer = {
-            'type': 'interval',
-            'hours': 1
-        }
         BR = BilibiliRanking()
         rv = BR.get_ranking_video()
         BR.input_csv(rv)
 
     def job_weather(self):
-        timer = {
-            'type': 'interval',
-            'seconds': 30
-        }
         weather = Weather()
         weather_info = weather.get_weather()
         title = weather_info['位置'] + ': ' + weather_info['温度'] + '摄氏度'
@@ -33,13 +26,13 @@ class Jobs:
         tg.sendmessage_as_text(msg)
 
     def job_new_ranking_telegram(self):
-        timer = {
-            'type': 'cron',
-            'hour': '9'
-        }
         BR = BilibiliRanking()
         new_video = BR.bilibili_ranking()
         if new_video is not None:
+            for v in new_video.values():
+                v['title'] = formater.markdown_v2_formater(v['title'])
+                v['author'] = formater.markdown_v2_formater(v['author'])
+
             tg = Telegram('', '')
             msg = '''
             *有{}个新视频上榜*
