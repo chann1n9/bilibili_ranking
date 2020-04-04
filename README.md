@@ -48,13 +48,18 @@ proxies 代理地址，如果过于频繁使用此脚本被b站封ip，请使用
 
 debug file in vscode:
 
-```
+```json
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        {
+            "name": "Python: brk.py run",
+            "type": "python",
+            "request": "launch",
+            "program": "brk.py",
+            "console": "integratedTerminal",
+            "args": ["run"]
+        },
         {
             "name": "Python: 当前文件",
             "type": "python",
@@ -66,10 +71,13 @@ debug file in vscode:
             "name": "Python: brk.py",
             "type": "python",
             "request": "launch",
-            // "program": "${file}",
             "program": "brk.py",
             "console": "integratedTerminal"
         }
     ]
 }
 ```
+##### 开发新功能
+1. 将新功能代码开发在plugins目录下
+2. 新的apscheduler的job放在job_master.py的Jobs类里
+3. job_master.JobMaster.load_jobs中规定任务的时间参数
