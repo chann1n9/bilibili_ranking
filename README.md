@@ -32,10 +32,52 @@ file_path 此变量为脚本生成文件保存路径 【默认】：脚本运行
 
 proxies 代理地址，如果过于频繁使用此脚本被b站封ip，请使用代理  【默认】：空
 
-#### 参与贡献
+#### 关于开发分支的使用
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+开发分支很多功能写得很粗糙留下很多坑要填
 
+主要实现：
+
+1. 向telegram发送数据
+
+2. 定时爬取数据并声称csv
+
+使用：`python brk.py run`
+
+**注意：请自行修各项配置, 例如代理配置和telegram的channle id 和 token**
+
+debug file in vscode:
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: brk.py run",
+            "type": "python",
+            "request": "launch",
+            "program": "brk.py",
+            "console": "integratedTerminal",
+            "args": ["run"]
+        },
+        {
+            "name": "Python: 当前文件",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: brk.py",
+            "type": "python",
+            "request": "launch",
+            "program": "brk.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}
+```
+##### 开发新功能
+1. 将新功能代码开发在plugins目录下
+2. 新的apscheduler的job放在job_master.py的Jobs类里
+3. job_master.JobMaster.load_jobs中规定任务的时间参数
