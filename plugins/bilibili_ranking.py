@@ -24,7 +24,7 @@ class BilibiliRanking():
 		self.re_c_cache_common_config = re.compile(r'^__\w*__$')
 		self.timestamp = float()
 		self.__out_file_prefix = 'bilibili_ranking'
-		self.LOG = Logger(package_name='bililog')
+		self.LOG = Logger(__name__)
 		self.logger = self.LOG.get_logger()
 
 		if not os.path.exists(self.cache_file_path):

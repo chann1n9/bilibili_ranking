@@ -1,10 +1,12 @@
 import sys
 import time
 import os
+import re
 import threading
 import argparse
 from job_master import JobMaster
 from utils.logger import Logger
+import run_test
 
 
 LOG = Logger(__name__)
@@ -17,10 +19,14 @@ def init_dir():
         if not os.path.exists(run_path + i):
             os.makedirs(run_path + i)
 
-def run():
+def run(jobs_id):
     # Thread APSchedulerThread
     jobmaster = JobMaster()
-    jobmaster.load_jobs()
+    if jobs_id:
+        jobmaster.load_jobs_by_id(jobs_id)
+    else:
+        logger.info('load jobs as default..')
+        jobmaster.load_jobs()
     jobmaster.start_jobs()
     logger.info('APScheduler is running')
 
@@ -28,16 +34,18 @@ def run():
     logger.info('MainThred is running')
     try:
         TRYTIME = 0
-        TIMEOUT = 10
+        TIMEOUT = 6
         while True and TRYTIME <= TIMEOUT:
             is_jobs_exist = jobmaster.is_jobs_exist()
             threads = threading.enumerate()
             if not 'APScheduler' in [i._name for i in threads] or not is_jobs_exist:
                 logger.warning('APSscheduler is not running or no jobs, Retry...')
-                time.sleep(1)
+                time.sleep(10)
                 TRYTIME += 1
                 if TRYTIME > TIMEOUT:
                     raise TimeoutError
+            else:
+                time.sleep(1)
     except TimeoutError:
         logger.error('TIMEOUT, Exit...')
     except KeyboardInterrupt:
@@ -45,6 +53,23 @@ def run():
     finally:
         logger.info('Clear the cache..')
         logger.info('Finished!')
+
+def test():
+    case_list = list()
+    for i in run_test.__dict__:
+        if re.match(r'^test_\S*', string=i):
+            case = getattr(run_test, i)
+            case_list.append(case)
+    report = ''
+    for case in case_list:
+        t = case()
+        if str(type(t)) != "<class 'NoneType'>":
+            msg = t[1] + ' Failed\n----------\n'
+            logger.error(msg)
+            report += msg
+    if report:
+        logger.error('Test failed, Exist...')
+        exit(0)
 
 
 APP_DESC="""
@@ -57,21 +82,15 @@ parser = argparse.ArgumentParser()
 parser.add_argument('run', help='运行打火石')
 parser.add_argument('-i', '--init', help='初始化out目录', action='store_true')
 parser.add_argument('-t', '--test', help='测试运行', action='store_true')
-parser.add_argument('-c', '--conf_path', default=os.getcwd()+'/conf/', help='默认 <程序根目录>/conf，可自定义')
-parser.add_argument('-j', '--job', help='指定运行的job名称，默认全部运行')
-parser.add_argument('-J', '--job_id', help='指定运行的job id， 默认全部运行')
-# parser.add_argument('url',metavar='URL',nargs='+', help="zhubo page URL (http://www.douyutv.com/*/)")
+parser.add_argument('-j', '--job_id', nargs='+', help='指定运行的job id， 默认全部运行')
 args = parser.parse_args()
 if args.run:
-    run()
-elif args.init:
-    init_dir()
-    run()
-elif args.test:
-    pass
-elif args.conf_path:
-    pass
-elif args.job:
-    pass
-elif args.job_id:
-    pass
+    if args.init:
+        init_dir()
+    if args.test:
+        test()
+    elif args.job_id:
+        run(jobs_id=args.job_id)
+    else:
+        DEFAULT = None
+        run(jobs_id=DEFAULT)

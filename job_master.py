@@ -42,6 +42,9 @@ class Jobs:
                 msg+='\n[{}]({})\n作者：{}\n'.format(v['title'], v['link'], v['author'])
             tg.sendmessage_as_markdown(msg)
 
+    def testjob1(self):
+        print('job testing...')
+
 
 class JobMaster(Jobs):
     def __init__(self):
@@ -59,7 +62,21 @@ class JobMaster(Jobs):
 
     def is_jobs_exist(self):
         return self.sche.get_jobs() != []
+    
+    def get_jobs_id_list(self):
+        id_list = list()
+        for job in self.sche.get_jobs():
+            id_list.append(job.id)
+        return id_list
+
+    def load_jobs_by_id(self, id):
+        self.load_jobs()
+        id_list = self.get_jobs_id_list()
+        for i in id_list:
+            if i not in id:
+                self.sche.remove_job(i)
 
     def load_jobs(self):
-        self.sche.add_job(self.job_weather, 'cron', hour='9')
-        self.sche.add_job(self.job_new_ranking_telegram, 'cron', hour='15,21')
+        # self.sche.add_job(self.testjob1, 'interval', seconds=3, id='test_job1')
+        self.sche.add_job(self.job_weather, 'cron', hour='9', id='job_weather')
+        self.sche.add_job(self.job_new_ranking_telegram, 'cron', hour='16,21', minute='10', id='job_br_tg')
